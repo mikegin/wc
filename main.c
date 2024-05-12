@@ -1,23 +1,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-#include <math.h>
-#include <stdlib.h>
 #include <ctype.h>
 
-typedef uint8_t u8;
-typedef uint32_t u32;
 typedef uint64_t u64;
-
 typedef int32_t b32;
-
-typedef float f32;
-typedef double f64;
-
-int int_to_str_size(int num)
-{
-    return (int)((ceil(log10(num))+1)*sizeof(char));
-}
 
 int main(int argc, char ** args)
 {
@@ -25,38 +12,21 @@ int main(int argc, char ** args)
     b32 lFlag = 0; // output number of lines in the file
     b32 wFlag = 0; // output number of words in the file
     b32 mFlag = 0; // output number of characters in the file
-    char * filename;
+    char * filename = NULL;
 
     if (argc > 1)
     {
         for (int i = 1; i < argc; i++) {
-            if (strcmp(args[i], "-c") == 0)
-            {
-                cFlag = 1;
-            }
-            else if (strcmp(args[i], "-l") == 0)
-            {
-                lFlag = 1;
-            }
-            else if (strcmp(args[i], "-w") == 0)
-            {
-                wFlag = 1;
-            }
-            else if (strcmp(args[i], "-m") == 0)
-            {
-                mFlag = 1;
-            }
-            else
-            {
-                filename = args[i];
-            }
+            if (strcmp(args[i], "-c") == 0) cFlag = 1;
+            else if (strcmp(args[i], "-l") == 0) lFlag = 1;
+            else if (strcmp(args[i], "-w") == 0) wFlag = 1;
+            else if (strcmp(args[i], "-m") == 0) mFlag = 1;
+            else filename = args[i];
         }
 
-        if (cFlag & lFlag & wFlag & mFlag == 0)
+        if (!cFlag && !lFlag && !wFlag && !mFlag)
         {
-            cFlag = 1;
-            lFlag = 1;
-            wFlag = 1;
+            cFlag, lFlag, wFlag = 1;
         }
 
         if (filename != NULL)
@@ -65,86 +35,40 @@ int main(int argc, char ** args)
             FILE *fp = fopen(filename, "r");
             if(fp != NULL)
             {
-                char out[255];
-                if (cFlag == 1)
-                {
-                    fseek(fp, 0L, SEEK_END);
-                    size_t sz = ftell(fp);
-                    fseek(fp, 0L, SEEK_SET);
 
-                    u64 cOutLen = int_to_str_size(sz);
-                    char cOut[cOutLen];
-                    snprintf(cOut, cOutLen, "%lu", (u64)sz);
-                    strcat(out, cOut);
-                    strcat(out, " ");
+                char out[255] = "";
+                u64 l, w, m, c = 0;
+                int ch, inword = 0;
+
+                if (cFlag) {
+                    fseek(fp, 0, SEEK_END);
+                    c = ftell(fp);
+                    fseek(fp, 0, SEEK_SET);
+                    snprintf(out, sizeof(out), "%lu ", c);
                 }
 
-                u64 l = 0;
-                u64 w = 0;
-                u64 m = 0;
-
-                u64 wStart = 0;
-                while(!feof(fp))
-                {
-                    u64 c = fgetc(fp);
-                    printf("%c\n", c);
-
-                    if (c == '\n')
-                    {
-                        l++;
-                    }
-
-                    if(isalpha(c) || c == '\'')
-                    {
-                        if (wStart == 0)
-                        {
-                            wStart = 1;
-                            w++;
+                while ((ch = fgetc(fp)) != EOF) {
+                    if (ch == '\n') ++l;
+                    if (isalpha(ch)) {
+                        if (!inword) {
+                            inword = 1;
+                            ++w;
                         }
+                    } else {
+                        inword = 0;
                     }
-                    else
-                    {
-                        wStart = 0;
-                    }
-
-                    m++;
+                    ++m;
                 }
 
-                if (lFlag == 1)
-                {
-                    u64 lOutLen = int_to_str_size(l);
-                    char lOut[lOutLen];
-                    snprintf(lOut, lOutLen, "%lu", l);
-                    strcat(out, lOut);
-                    strcat(out, " ");
-                }
-
-                if (wFlag == 1)
-                {
-                    u64 wOutLen = int_to_str_size(w);
-                    char wOut[wOutLen];
-                    snprintf(wOut, wOutLen, "%lu", w);
-                    strcat(out, wOut);
-                    strcat(out, " ");
-                }
-
-                if (mFlag == 1)
-                {
-                    u64 mOutLen = int_to_str_size(m);
-                    char mOut[mOutLen];
-                    snprintf(mOut, mOutLen, "%lu", m);
-                    strcat(out, mOut);
-                    strcat(out, " ");
-                }
-
-
-
+                if (lFlag) snprintf(out + strlen(out), sizeof(out) - strlen(out), "%lu ", l);
+                if (wFlag) snprintf(out + strlen(out), sizeof(out) - strlen(out), "%lu ", w);
+                if (mFlag) snprintf(out + strlen(out), sizeof(out) - strlen(out), "%lu ", m);
 
                 fprintf(stdout, "%s%s\n", out, filename);
             }
             else
             {
-                fprintf(stderr, "Not able to open the file with name %s.", filename);
+                fprintf(stderr, "Not able to open the file with name %s.\n", filename);
                 return -1;
             }
 
@@ -152,13 +76,13 @@ int main(int argc, char ** args)
         }
         else
         {
-            fprintf(stdout, "Usage: mwc [-c] filename");
+            fprintf(stdout, "Usage: wc [-c | -l | -w | -m ] filename");
         }
 
     } 
     else
     {
-        fprintf(stdout, "Usage: mwc [-c] filename");
+        fprintf(stdout, "Usage: wc [-c | -l | -w | -m ] filename");
     }
 
     return 0;
